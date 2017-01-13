@@ -1,0 +1,333 @@
+SQL> start query1
+SQL> select distinct co.dept_code||co.course# as course_id,co.title
+  2  from Classes cl,Courses co
+  3  where cl.semester='Spring'
+  4  	    and cl.year='2016'
+  5  	    and cl.course#=co.course#;
+
+COURSE_ID                                    TITLE                              
+-------------------------------------------- --------------------               
+CS532                                        database systems                   
+CS240                                        data structure                     
+Math221                                      calculus I                         
+CS432                                        database systems                   
+
+SQL> start query2
+SQL> select firstname from students where sid IN(
+  2  (select distinct sid
+  3  from Enrollments e, Classes c
+  4  where exists
+  5        (select * from Enrollments
+  6         where c.dept_code='CS'
+  7               and c.classid=e.classid)  intersect
+  8  select distinct sid
+  9  from Enrollments e, Classes c
+ 10  where exists
+ 11        (select * from Enrollments
+ 12         where c.dept_code='Math'
+ 13               and c.classid=e.classid)));
+
+FIRSTNAME
+---------------
+Anne
+                                                               
+
+SQL> start query3
+SQL> select distinct co.dept_code,co.course#
+  2  from Courses co,Classes cl
+  3  where co.course# not in
+  4  	     (select co.course# from Classes cl, Courses co
+  5  		     where cl.year = '2015'
+  6  		     and cl.course#=co.course#);
+
+DEPT    COURSE#                                                                 
+---- ----------                                                                 
+CS          532                                                                 
+Math        221                                                                 
+CS          240                                                                 
+CS          552                                                                 
+BIOL        425                                                                 
+
+SQL> start query4
+SQL> select distinct s.sid,s.firstname,s.gpa
+  2  from Students s,Enrollments e
+  3  where s.sid not in
+  4          (select s.sid from Students s where s.status='graduate')
+  5          and e.lgrade = 'A'
+  6          and s.sid=e.sid;
+
+SID  FIRSTNAME              GPA
+---- --------------- ----------
+B003 Tracy                    4
+B001 Anne                  3.17
+B007 Becky                    4
+                                
+
+SQL> start query5
+SQL> select distinct s.firstname
+  2  from students s,enrollments e
+  3  where s.sid=e.sid
+  4  and s.sid not in
+  5       (select distinct s.sid
+  6          from students s, enrollments e
+  7      where e.lgrade = 'A' and e.sid=s.sid);
+
+FIRSTNAME
+---------------
+Terry
+Jack
+Barbara
+                                                                      
+
+SQL> start query6
+SQL> select s.sid,s.firstname from enrollments e,students s
+  2  where e.lgrade='A'
+  3  	     and e.sid=s.sid
+  4  	     and e.sid not in
+  5  	     (select sid
+  6  	     from enrollments where lgrade='B'
+  7  	     union
+  8  	     select sid
+  9  	     from enrollments
+ 10  	     where lgrade='C' union select sid
+ 11  	     from enrollments where lgrade='D'
+ 12  	     union
+ 13  	     select sid
+ 14  	     from enrollments
+ 15  	     where lgrade='F');
+
+SID  FIRSTNAME                                                                  
+---- ---------------                                                            
+B003 Tracy                                                                      
+B006 Terry                                                                      
+B007 Becky                                                                      
+
+SQL> start query7
+SQL> select dept_code,course#
+  2  from Classes
+  3  group by course#,dept_code
+  4  having count(course#) = (select max(count(course#))
+  5  			     from Classes
+  6  			     group by course#,dept_code);
+
+DEPT    COURSE#                                                                 
+---- ----------                                                                 
+CS          432                                                                 
+Math        314                                                                 
+
+SQL> start query8
+SQL> select classid,dept_code,course#,limit-class_size as seats_available
+  2  from Classes
+  3  where semester = 'Spring'
+  4  	   and year = '2016'
+  5  	   and class_size<limit;
+
+CLASS DEPT    COURSE# SEATS_AVAILABLE                                           
+----- ---- ---------- ---------------                                           
+c0005 CS          240               1                                           
+c0001 CS          432               1                                           
+c0006 CS          532               1                                           
+
+SQL> start query9
+SQL> select *
+  2  from Students s
+  3  where exists(select e.sid,count(*)
+  4  		  from Enrollments e
+  5  		  group by e.sid
+  6  		  having count(*)>4 and e.sid=s.sid);
+
+SID  FIRSTNAME       LASTNAME        STATUS            GPA EMAIL                
+---- --------------- --------------- ---------- ---------- -------------------- 
+B001 Anne            Broder          junior           3.17 broder@bu.edu        
+
+SQL> start query10
+SQL> select *
+  2  from Classes c
+  3  where year = '2016'
+  4  	   and semester = 'Spring'
+  5  	   and dept_code='CS'
+  6  	   and exists (select classid,count(*)
+  7  		       from Enrollments e
+  8  		       group by e.classid
+  9  		       having count(*)<3 and e.classid=c.classid);
+
+CLASS DEPT    COURSE#      SECT#       YEAR SEMEST      LIMIT CLASS_SIZE        
+----- ---- ---------- ---------- ---------- ------ ---------- ----------        
+c0001 CS          432          1       2016 Spring         35         34        
+
+SQL> start query11
+SQL> select distinct s.sid,s.firstname
+  2  from Students s
+  3  where s.sid in
+  4  (select e.sid
+  5  from Enrollments e
+  6  where e.classid in
+  7  (select cl.classid
+  8  from Classes cl
+  9  where cl.course# in
+ 10  (select co.course#
+ 11  from Courses co
+ 12  where co.course# like '4%'
+ 13  and co.dept_code='CS')));
+
+SID  FIRSTNAME                                                                  
+---- ---------------                                                            
+B001 Anne                                                                       
+B003 Tracy                                                                      
+B004 Barbara                                                                    
+
+SQL> start query12
+SQL> select distinct co.title
+  2  from Courses co
+  3  where co.course# in
+  4  	     (select co.course#
+  5  	     from Courses co,Enrollments e,Classes cl
+  6  	     where e.sid='B001' and e.classid=cl.classid and cl.course#=co.course#
+  7  	     minus
+  8  	     select co.course#
+  9  	     from Courses co,Enrollments e,Classes cl
+ 10  	     where e.sid='B002' and e.classid=cl.classid and cl.course#=co.course#);
+
+TITLE                                                                           
+--------------------                                                            
+database systems                                                                
+data structure                                                                  
+
+SQL> start query13
+SQL> select s.firstname
+  2  from Students s
+  3  where s.sid in
+  4  	     (select e.sid
+  5  	     from Enrollments e
+  6  	     where e.classid in
+  7  	     (select cl.classid
+  8  	     from Classes cl
+  9  	     where cl.course# in
+ 10  	     (select cl.course#
+ 11  	     from Classes cl,Enrollments e
+ 12  	     where cl.classid=e.classid and e.sid='B005')));
+
+FIRSTNAME                                                                       
+---------------                                                                 
+Anne                                                                            
+Jack                                                                            
+Terry                                                                           
+
+SQL> start query14
+SQL> select dept_code,course#,year,semester
+  2  from Classes
+  3  group by dept_code,course#,semester,year
+  4  having count(classid)>1;
+
+DEPT    COURSE#       YEAR SEMEST                                               
+---- ---------- ---------- ------                                               
+Math        314       2015 Fall                                                 
+
+SQL> start query15
+SQL> select s.sid, s.firstname from Students s
+  2  where s.sid in
+  3  	     (select distinct e.sid
+  4  	     from Enrollments e,
+  5  	     (select e.classid classid, max(g.ngrade) maximum_grade
+  6  	     from Enrollments e, Grades g
+  7  	     where e.lgrade = g.lgrade group by e.classid) mg, grades g
+  8  	     where e.classid = mg.classid and e.lgrade = g.lgrade and g.ngrade = mg.maximum_grade);
+
+SID  FIRSTNAME                                                                  
+---- ---------------                                                            
+B001 Anne                                                                       
+B002 Terry                                                                      
+B003 Tracy                                                                      
+B004 Barbara                                                                    
+B006 Terry                                                                      
+B007 Becky                                                                      
+
+6 rows selected.
+
+SQL> start query16
+SQL> select co.dept_code, co.course#, co.title, nvl(e.lgrade,'to be assigned') grade
+  2  from Enrollments e, Classes cl, Courses co
+  3  where e.sid = 'B003'
+  4  and cl.course# = co.course#
+  5  and e.classid = cl.classid
+  6  and cl.dept_code = co.dept_code;
+
+DEPT    COURSE# TITLE                GRADE                                      
+---- ---------- -------------------- --------------                             
+CS          432 database systems     A                                          
+CS          240 data structure       to be assigned                             
+
+SQL> start query17
+SQL> select distinct cl.dept_code,cl.course#, co.title
+  2  from Students s, Enrollments e, Classes cl, Courses co
+  3  where s.gpa > 3.25
+  4  and co.title like '%systems'
+  5  and e.classid = cl.classid
+  6  and cl.course# = co.course#
+  7  and s.sid = e.sid;
+
+DEPT    COURSE# TITLE
+---- ---------- --------------------
+CS          432 database systems
+CS          532 database systems
+
+SQL> start query18
+SQL> select s.sid, s.firstname, nvl(a.total_credits,0)
+  2  from Students s,
+  3  (select e.sid sid, sum(cc.credits) total_credits
+  4  from Enrollments e, Classes cl, Course_credit cc, Grades g
+  5  where e.classid = cl.classid(+)
+  6  and cl.course# = cc.course#(+)
+  7  and e.lgrade = g.lgrade(+)
+  8  and g.ngrade is not null
+  9  group by e.sid)a
+ 10  where s.sid = a.sid(+);
+
+SID  FIRSTNAME       NVL(A.TOTAL_CREDITS,0)                                     
+---- --------------- ----------------------                                     
+B001 Anne                                23                                     
+B002 Terry                                4                                     
+B003 Tracy                                4                                     
+B004 Barbara                              8                                     
+B005 Jack                                 3                                     
+B006 Terry                                3                                     
+B007 Becky                                4                                     
+B008 Tom                                  0                                     
+
+8 rows selected.
+
+SQL> start query19
+SQL> select avg(total_credits)
+  2  from (select e.sid, sum(cc.credits) total_credits
+  3  from Enrollments e, Classes cl, Course_credit cc
+  4  where e.classid = cl.classid
+  5  and cl.course# = cc.course#
+  6  and e.lgrade is not null and e.lgrade <> 'I'
+  7  group by e.sid) a;
+
+AVG(TOTAL_CREDITS)                                                              
+------------------                                                              
+                 7                                                              
+
+SQL> start query20
+SQL> select s.sid, sum(g.ngrade)/count(ngrade) as cgpa
+  2  from Students s, Enrollments e, Grades g
+  3  where e.lgrade = g.lgrade (+)
+  4  and s.sid = e.sid (+)
+  5  group by s.sid
+  6  order by cgpa desc;
+
+SID        CGPA                                                                 
+---- ----------                                                                 
+B008                                                                            
+B007          4                                                                 
+B003          4                                                                 
+B006          4                                                                 
+B001 3.16666667                                                                 
+B005          3                                                                 
+B002          3                                                                 
+B004        2.5                                                                 
+
+8 rows selected.
+
+SQL> spool off
